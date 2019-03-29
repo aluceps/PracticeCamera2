@@ -8,6 +8,7 @@ import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.util.Size
 import java.lang.Long.signum
+import java.util.*
 
 internal class CompareSizesByArea : Comparator<Size> {
     override fun compare(o1: Size, o2: Size): Int =
@@ -19,12 +20,38 @@ interface CameraViewInterface {
     fun pause()
     fun requestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray)
     fun capture()
+    fun unlock()
+    var state: State.Camera
 }
 
-enum class Permission(val manifest: String, val code: Int) {
-    Camera(Manifest.permission.CAMERA, 0x001),
-    Audio(Manifest.permission.RECORD_AUDIO, 0x002),
-    WriteExternalStorage(Manifest.permission.WRITE_EXTERNAL_STORAGE, 0x003)
+sealed class State {
+    sealed class Camera {
+        object Preview : Camera()
+        object WaitingLock : Camera()
+        object WaitingPrecapture : Camera()
+        object WaitingNonPrecapture : Camera()
+        object PictureTaken : Camera()
+    }
+}
+
+sealed class Permission {
+    object Camera : Permission() {
+        override val manifest: String = Manifest.permission.CAMERA
+        override val code: Int = 0x001
+    }
+
+    object Audio : Permission() {
+        override val manifest: String = Manifest.permission.RECORD_AUDIO
+        override val code: Int = 0x002
+    }
+
+    object WriteExternalStorage : Permission() {
+        override val manifest: String = Manifest.permission.WRITE_EXTERNAL_STORAGE
+        override val code: Int = 0x003
+    }
+
+    abstract val manifest: String
+    abstract val code: Int
 }
 
 fun AppCompatActivity.requestPermission(permission: Permission, granted: (() -> Unit)? = null) {
@@ -39,16 +66,40 @@ fun AppCompatActivity.requestPermission(permission: Permission, granted: (() -> 
     }
 }
 
-enum class CameraState {
-    Preview,
-    WaitingLock,
-    WaitingPrecapture,
-    WaitingNonPrecapture,
-    PictureTaken,
-}
-
 enum class Resolution(val width: Int, val height: Int) {
     FullHD(1920, 1080)
+}
+
+fun Array<Size>.chooseOptimalSize(
+    viewWidth: Int,
+    viewHeight: Int,
+    maxWidth: Int,
+    maxHeight: Int,
+    aspectRatio: Size
+): Size {
+    val bigEnough = ArrayList<Size>()
+    val notBigEnough = ArrayList<Size>()
+    val w = aspectRatio.width
+    val h = aspectRatio.height
+
+    forEach { option ->
+        if (option.width <= maxWidth &&
+            option.height <= maxHeight &&
+            option.height <= option.width * h / w
+        ) {
+            if (option.width >= viewWidth && option.height >= viewHeight) {
+                bigEnough.add(option)
+            } else {
+                notBigEnough.add(option)
+            }
+        }
+    }
+
+    return when {
+        bigEnough.size > 0 -> Collections.min(bigEnough, CompareSizesByArea())
+        notBigEnough.size > 0 -> Collections.max(notBigEnough, CompareSizesByArea())
+        else -> first()
+    }
 }
 
 fun debugLog(message: String) {
@@ -62,4 +113,3 @@ fun errorLog(message: String) {
 fun errorLog(message: String, throwable: Throwable) {
     if (BuildConfig.DEBUG) Log.e("CameraView", message, throwable)
 }
-

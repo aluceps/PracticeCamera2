@@ -14,6 +14,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        binding.action.setOnClickListener {
+            binding.cameraView.capture()
+        }
+        binding.close.setOnClickListener {
+            binding.cameraView.unlock()
+        }
     }
 
     override fun onStart() {

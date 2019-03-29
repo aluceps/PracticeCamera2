@@ -6,6 +6,7 @@
     <android.support.constraint.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="@android:color/black"
         >
 
         <me.aluceps.practicecamera2.CameraView
@@ -16,6 +17,29 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
+            />
+
+        <android.support.v7.widget.AppCompatImageButton
+            android:id="@+id/close"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="16dp"
+            android:src="@drawable/ic_close"
+            app:layout_constraintStart_toStartOf="@id/camera_view"
+            app:layout_constraintTop_toTopOf="@id/camera_view"
+            />
+
+        <Button
+            android:id="@+id/action"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            android:text="take"
+            app:layout_constraintBottom_toBottomOf="@id/camera_view"
+            app:layout_constraintEnd_toEndOf="@id/camera_view"
+            app:layout_constraintStart_toStartOf="@id/camera_view"
             />
     </android.support.constraint.ConstraintLayout>
 </layout>
