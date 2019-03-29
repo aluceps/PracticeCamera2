@@ -14,7 +14,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding
     }
 
     override fun onStart() {
@@ -24,5 +23,20 @@ class MainActivity : AppCompatActivity() {
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
                     View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
                     View.SYSTEM_UI_FLAG_FULLSCREEN
+    }
+
+    override fun onResume() {
+        super.onResume()
+        binding.cameraView.resume(this)
+    }
+
+    override fun onPause() {
+        binding.cameraView.pause()
+        super.onPause()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        binding.cameraView.requestPermissionsResult(requestCode, permissions, grantResults)
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 }
