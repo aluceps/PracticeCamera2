@@ -51,7 +51,9 @@ class CameraView @JvmOverloads constructor(
         }
     }
 
+    //------------------------------
     // 以下、カメラ機能
+    //------------------------------
 
     private lateinit var activity: AppCompatActivity
 
@@ -118,6 +120,9 @@ class CameraView @JvmOverloads constructor(
     private var backgroundHandler: Handler? = null
 
     private var imageReader: ImageReader? = null
+    private val onImageAvailableListener = ImageReader.OnImageAvailableListener {
+        backgroundHandler?.post { debugLog("onImageAvailableListener: ${it.acquireNextImage()}") }
+    }
 
     private val orientations = SparseIntArray().apply {
         append(Surface.ROTATION_0, 90)
@@ -142,7 +147,9 @@ class CameraView @JvmOverloads constructor(
             val swapped = areDimensionsSwapped(activity.windowManager.defaultDisplay.rotation)
             val displaySize = Point().apply { activity.windowManager.defaultDisplay.getSize(this) }
 
-            imageReader = ImageReader.newInstance(largest.width, largest.height, ImageFormat.JPEG, 2)
+            imageReader = ImageReader.newInstance(largest.width, largest.height, ImageFormat.JPEG, 2).apply {
+                setOnImageAvailableListener(onImageAvailableListener, backgroundHandler)
+            }
 
             val rotateWidth = if (swapped) height else width
             val rotateHeight = if (swapped) width else height
@@ -177,8 +184,7 @@ class CameraView @JvmOverloads constructor(
                 }
 
                 override fun onDisconnected(camera: CameraDevice) {
-                    cameraDevice?.close()
-                    cameraDevice = null
+                    closeDevice()
                 }
 
                 override fun onError(camera: CameraDevice, error: Int) {
@@ -306,10 +312,22 @@ class CameraView @JvmOverloads constructor(
     }
 
     private fun closeCamera() {
+        closeSession()
+        closeDevice()
+        closeImageReader()
+    }
+
+    private fun closeSession() {
         captureSession?.close()
         captureSession = null
+    }
+
+    private fun closeDevice() {
         cameraDevice?.close()
         cameraDevice = null
+    }
+
+    private fun closeImageReader() {
         imageReader?.close()
         imageReader = null
     }
