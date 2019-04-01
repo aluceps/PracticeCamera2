@@ -16,12 +16,15 @@ internal class CompareSizesByArea : Comparator<Size> {
 }
 
 interface CameraViewInterface {
-    fun resume(activity: AppCompatActivity)
+    fun resume(activity: AppCompatActivity? = null)
     fun pause()
     fun requestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray)
     fun capture()
     fun unlock()
+    fun captureVideo()
+    fun stopCaptureVideo()
     var state: State.Camera
+    val tempPath: String
 }
 
 sealed class State {
@@ -101,6 +104,9 @@ fun Array<Size>.chooseOptimalSize(
         else -> first()
     }
 }
+
+fun Array<Size>.chooseVideSize(): Size =
+    firstOrNull { it.width == it.height * 4 / 3 && it.width < Resolution.FullHD.height } ?: get(size - 1)
 
 fun debugLog(message: String) {
     if (BuildConfig.DEBUG) Log.d("CameraView", message)

@@ -4,6 +4,7 @@ import android.databinding.DataBindingUtil
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.view.View
+import android.widget.Toast
 import me.aluceps.practicecamera2.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
@@ -15,7 +16,13 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding.action.setOnClickListener {
+            Toast.makeText(it.context, "写真", Toast.LENGTH_SHORT).show()
             binding.cameraView.capture()
+        }
+        binding.action.setOnLongClickListener {
+            Toast.makeText(it.context, "動画", Toast.LENGTH_SHORT).show()
+            binding.cameraView.captureVideo()
+            true
         }
         binding.close.setOnClickListener {
             binding.cameraView.unlock()
