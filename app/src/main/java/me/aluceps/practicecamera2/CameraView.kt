@@ -10,7 +10,6 @@ import android.graphics.SurfaceTexture
 import android.hardware.camera2.*
 import android.media.ImageReader
 import android.media.MediaRecorder
-import android.os.Build
 import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
