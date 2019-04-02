@@ -105,9 +105,6 @@ fun Array<Size>.chooseOptimalSize(
     }
 }
 
-fun Array<Size>.chooseVideSize(): Size =
-    firstOrNull { it.width == it.height * 4 / 3 && it.width < Resolution.FullHD.height } ?: get(size - 1)
-
 fun debugLog(message: String) {
     if (BuildConfig.DEBUG) Log.d("CameraView", message)
 }

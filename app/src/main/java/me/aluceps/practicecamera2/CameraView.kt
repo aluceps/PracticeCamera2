@@ -316,8 +316,8 @@ class CameraView @JvmOverloads constructor(
                 ae != CaptureResult.CONTROL_AE_STATE_PRECAPTURE
             ) {
                 state = State.Camera.PictureTaken
-                captureStillPicture()
                 debugLog("nonPrecapture: state=$state")
+                captureStillPicture()
             }
         }
 
@@ -325,8 +325,8 @@ class CameraView @JvmOverloads constructor(
             val af = result.get(CaptureResult.CONTROL_AF_STATE)
             if (af == null) {
                 state = State.Camera.PictureTaken
-                captureStillPicture()
                 debugLog("capturePicture: 0 state=$state")
+                captureStillPicture()
             } else {
                 if (af == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED ||
                     af == CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED
@@ -336,11 +336,10 @@ class CameraView @JvmOverloads constructor(
                         ae == CaptureResult.CONTROL_AE_STATE_CONVERGED
                     ) {
                         state = State.Camera.PictureTaken
-                        captureStillPicture()
                         debugLog("capturePicture: 1 state=$state")
+                        captureStillPicture()
                     } else {
                         runPrecaptureSequence()
-                        debugLog("capturePicture: 2 state=$state")
                     }
                 }
             }
@@ -416,6 +415,7 @@ class CameraView @JvmOverloads constructor(
 
     private fun captureStillPicture() {
         try {
+            cameraDevice ?: return
             if (cameraDevice == null) return
             val captureBuilder = cameraDevice?.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)?.apply {
                 addTarget(imageReader!!.surface)
@@ -433,9 +433,7 @@ class CameraView @JvmOverloads constructor(
                     session: CameraCaptureSession,
                     request: CaptureRequest,
                     result: TotalCaptureResult
-                ) {
-//                    unLockFocus()
-                }
+                ) = Unit
             }
             captureBuilder?.build()?.let { request ->
                 captureSession?.apply {
@@ -478,10 +476,7 @@ class CameraView @JvmOverloads constructor(
                 closePreviewSession()
                 setupMediaRecorder()
 
-                val texture = surfaceTexture.apply {
-                    setDefaultBufferSize(previewSize.width, previewSize.height)
-                }
-
+                val texture = surfaceTexture.apply { setDefaultBufferSize(previewSize.width, previewSize.height) }
                 val previewSurface = Surface(texture)
                 val recorderSurface = mediaRecorder!!.surface
                 val surfaces = ArrayList<Surface>().apply {
@@ -530,8 +525,8 @@ class CameraView @JvmOverloads constructor(
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setOutputFile("$tempPath/temp_video.mp4")
-            setVideoEncodingBitRate(12000000)
-            setVideoFrameRate(30)
+            setVideoEncodingBitRate(RECORD_ENCODING_BIT_RATE)
+            setVideoFrameRate(RECORD_FRAME_RATE)
             setVideoSize(previewSize.width, previewSize.height)
             setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             setVideoEncoder(MediaRecorder.VideoEncoder.H264)
@@ -600,5 +595,7 @@ class CameraView @JvmOverloads constructor(
     companion object {
         private const val SENSOR_ORIENTATION_DEFAULT_DEGREES = 90
         private const val SENSOR_ORIENTATION_INVERSE_DEGREES = 270
+        private const val RECORD_ENCODING_BIT_RATE = 12000000
+        private const val RECORD_FRAME_RATE = 30
     }
 }
