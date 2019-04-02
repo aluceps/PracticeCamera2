@@ -4,10 +4,13 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Configuration
-import android.graphics.*
+import android.graphics.ImageFormat
+import android.graphics.Point
+import android.graphics.SurfaceTexture
 import android.hardware.camera2.*
 import android.media.ImageReader
 import android.media.MediaRecorder
+import android.os.Build
 import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
@@ -19,6 +22,7 @@ import android.view.Surface
 import android.view.TextureView
 import android.view.View
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.util.*
 import kotlin.collections.ArrayList
@@ -63,9 +67,9 @@ class CameraView @JvmOverloads constructor(
     override var state: State.Camera = State.Camera.Preview
 
     override val tempPath by lazy {
-        val dir = File("${Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)}/PracticeCamera2/")
-        if (!dir.exists()) dir.mkdir()
-        File(dir.absolutePath, "temp_video.mp4").absolutePath
+        File("${Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)}/PracticeCamera2/").also { dir ->
+            if (!dir.exists()) dir.mkdir()
+        }.absolutePath
     }
 
     override fun resume(activity: AppCompatActivity?) {
@@ -74,19 +78,14 @@ class CameraView @JvmOverloads constructor(
         }
         startBackgroundThread()
         if (isAvailable) {
-            openCamera(width, height)
+            openCamera()
         } else {
             surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture?, width: Int, height: Int) = Unit
                 override fun onSurfaceTextureUpdated(surface: SurfaceTexture?) = Unit
                 override fun onSurfaceTextureDestroyed(surface: SurfaceTexture?): Boolean = true
                 override fun onSurfaceTextureAvailable(surface: SurfaceTexture?, width: Int, height: Int) {
-                    openCamera(width, height)
-                }
-
-                override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture?, width: Int, height: Int) {
-                    if (isRecordingVideo) {
-                        configureTransform(width, height)
-                    }
+                    openCamera()
                 }
             }
         }
@@ -104,7 +103,7 @@ class CameraView @JvmOverloads constructor(
             grantResults.any { it != PackageManager.PERMISSION_GRANTED } ->
                 debugLog("requestPermissionsResult: ${grantResults.first()}")
             else ->
-                if (requestCode == Permission.Camera.code) openCamera(width, height) else Unit
+                if (requestCode == Permission.Camera.code) openCamera() else Unit
         }
     }
 
@@ -113,22 +112,26 @@ class CameraView @JvmOverloads constructor(
     }
 
     override fun unlock() {
-        unLockFocus()
+        if (isRecordingVideo) {
+            stopCaptureVideo()
+        } else {
+            unLockFocus()
+        }
     }
 
     override fun captureVideo() {
-//        isRecordingVideo = true
-//        pause()
-//        resume()
         recordingVideo()
     }
 
     override fun stopCaptureVideo() {
-//        isRecordingVideo = false
+        isRecordingVideo = false
+        debugLog("stopCaptureVideo")
         mediaRecorder?.apply {
             stop()
             reset()
         }
+        closePreviewSession()
+        createCameraPreviewSession()
     }
 
     private var cameraId: String = ""
@@ -136,7 +139,6 @@ class CameraView @JvmOverloads constructor(
     private var flashSupport: Boolean = false
 
     private lateinit var previewSize: Size
-    private lateinit var videoSize: Size
 
     private var cameraDevice: CameraDevice? = null
     private var captureSession: CameraCaptureSession? = null
@@ -148,8 +150,17 @@ class CameraView @JvmOverloads constructor(
     private var backgroundHandler: Handler? = null
 
     private var imageReader: ImageReader? = null
-    private val onImageAvailableListener = ImageReader.OnImageAvailableListener {
-        backgroundHandler?.post { debugLog("onImageAvailableListener: ${it.acquireNextImage()}") }
+    private val onImageAvailableListener = ImageReader.OnImageAvailableListener { image ->
+        backgroundHandler?.post {
+            image.use {
+                val buffer = it.acquireNextImage().planes.first().buffer
+                val bytes = ByteArray(buffer.remaining())
+                buffer.get(bytes)
+                FileOutputStream("$tempPath/temp_image.jpg").use { stream ->
+                    stream.write(bytes)
+                }
+            }
+        }
     }
 
     private var mediaRecorder: MediaRecorder? = null
@@ -168,7 +179,7 @@ class CameraView @JvmOverloads constructor(
         append(Surface.ROTATION_270, 0)
     }
 
-    private var isRecordingVideo = true
+    private var isRecordingVideo = false
 
     private fun setupCamera() {
         manager.cameraIdList.forEach { cameraId ->
@@ -182,18 +193,12 @@ class CameraView @JvmOverloads constructor(
             this.orientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
             this.flashSupport = characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
 
-            videoSize = if (isRecordingVideo) {
-                map.getOutputSizes(MediaRecorder::class.java).chooseVideSize()
-            } else {
-                Collections.max(map.getOutputSizes(ImageFormat.JPEG).toList(), CompareSizesByArea())
-            }
+            val largest = Collections.max(map.getOutputSizes(ImageFormat.JPEG).toList(), CompareSizesByArea())
             val swapped = areDimensionsSwapped(activity.windowManager.defaultDisplay.rotation)
             val displaySize = Point().apply { activity.windowManager.defaultDisplay.getSize(this) }
 
-            if (!isRecordingVideo) {
-                imageReader = ImageReader.newInstance(videoSize.width, videoSize.height, ImageFormat.JPEG, 2).apply {
-                    setOnImageAvailableListener(onImageAvailableListener, backgroundHandler)
-                }
+            imageReader = ImageReader.newInstance(largest.width, largest.height, ImageFormat.JPEG, 2).apply {
+                setOnImageAvailableListener(onImageAvailableListener, backgroundHandler)
             }
 
             val rotateWidth = if (swapped) height else width
@@ -205,7 +210,7 @@ class CameraView @JvmOverloads constructor(
             if (maxHeight > Resolution.FullHD.height) maxHeight = Resolution.FullHD.height
 
             previewSize = map.getOutputSizes(SurfaceTexture::class.java).chooseOptimalSize(
-                rotateWidth, rotateHeight, maxWidth, maxHeight, videoSize
+                rotateWidth, rotateHeight, maxWidth, maxHeight, largest
             )
 
             if (activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -218,41 +223,14 @@ class CameraView @JvmOverloads constructor(
         }
     }
 
-    private fun configureTransform(width: Int, height: Int) {
-        val rotation = activity.windowManager.defaultDisplay.rotation
-        val matrix = Matrix()
-        val viewRect = RectF(0f, 0f, width.toFloat(), height.toFloat())
-        val bufferRect = RectF(0f, 0f, previewSize.width.toFloat(), previewSize.height.toFloat())
-        val centerX = viewRect.centerX()
-        val centerY = viewRect.centerY()
-        if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
-            bufferRect.offset(centerX - bufferRect.centerX(), centerY - bufferRect.centerY())
-            matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL)
-            val scale = Math.max(
-                height.toFloat() / previewSize.height,
-                width.toFloat() / previewSize.width
-            )
-            with(matrix) {
-                postScale(scale, scale, centerX, centerY)
-                postRotate((90 * (rotation - 2)).toFloat(), centerX, centerY)
-            }
-        }
-        setTransform(matrix)
-    }
-
     @SuppressLint("MissingPermission")
-    private fun openCamera(width: Int, height: Int) {
+    private fun openCamera() {
         activity.requestPermission(Permission.Camera) {
             setupCamera()
             manager.openCamera(cameraId, object : CameraDevice.StateCallback() {
                 override fun onOpened(camera: CameraDevice) {
                     cameraDevice = camera
-                    if (isRecordingVideo) {
-                        startPreview()
-                        configureTransform(width, height)
-                    } else {
-                        createCameraPreviewSession()
-                    }
+                    createCameraPreviewSession()
                 }
 
                 override fun onDisconnected(camera: CameraDevice) {
@@ -285,11 +263,7 @@ class CameraView @JvmOverloads constructor(
                         override fun onConfigured(session: CameraCaptureSession) {
                             captureSession = session
                             try {
-                                if (isRecordingVideo) {
-                                    updatePreview()
-                                } else {
-                                    preview()
-                                }
+                                preview()
                             } catch (e: CameraAccessException) {
                                 errorLog("onConfigured", e)
                             }
@@ -527,6 +501,7 @@ class CameraView @JvmOverloads constructor(
                         updatePreview()
                         activity.runOnUiThread {
                             debugLog("recordingVideo")
+                            isRecordingVideo = true
                             mediaRecorder?.start()
                         }
                     }
@@ -540,7 +515,6 @@ class CameraView @JvmOverloads constructor(
     }
 
     private fun setupMediaRecorder() {
-        configureTransform(width, height)
         mediaRecorder = MediaRecorder()
 
         val rotation = activity.windowManager.defaultDisplay.rotation
@@ -551,62 +525,17 @@ class CameraView @JvmOverloads constructor(
                 mediaRecorder?.setOrientationHint(inverseOrientations.get(rotation))
         }
 
-        debugLog("setupMediaRecorder: tempPath=$tempPath")
         mediaRecorder?.apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            setOutputFile(tempPath)
-            setVideoEncodingBitRate(10000000)
+            setOutputFile("$tempPath/temp_video.mp4")
+            setVideoEncodingBitRate(12000000)
             setVideoFrameRate(30)
-            setVideoSize(videoSize.width, videoSize.height)
-            setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+            setVideoSize(previewSize.width, previewSize.height)
             setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            setOnInfoListener { mr, what, extra ->
-                debugLog("mr=$mr what=$what extra=$extra")
-            }
+            setVideoEncoder(MediaRecorder.VideoEncoder.H264)
             prepare()
-        }
-    }
-
-    private fun startPreview() {
-        cameraDevice?.let { device ->
-            try {
-                closePreviewSession()
-
-                val texture = surfaceTexture.apply { setDefaultBufferSize(previewSize.width, previewSize.height) }
-                previewRequestBuilder = device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-
-                val previewSurface = Surface(texture)
-                previewRequestBuilder.addTarget(previewSurface)
-
-                device.createCaptureSession(listOf(previewSurface), object : CameraCaptureSession.StateCallback() {
-                    override fun onConfigureFailed(session: CameraCaptureSession) {}
-                    override fun onConfigured(session: CameraCaptureSession) {
-                        captureSession = session
-                        updatePreview()
-                    }
-                }, backgroundHandler)
-            } catch (e: CameraAccessException) {
-                errorLog("startPreview", e)
-            }
-        }
-    }
-
-    private fun updatePreview() {
-        try {
-            previewRequestBuilder.set(
-                CaptureRequest.CONTROL_MODE,
-                CameraMetadata.CONTROL_MODE_AUTO
-            )
-            HandlerThread("CameraPreview").start()
-            captureSession?.setRepeatingRequest(
-                previewRequestBuilder.build(),
-                null,
-                backgroundHandler
-            )
-        } catch (e: CameraAccessException) {
-            errorLog("updatePreview", e)
         }
     }
 
@@ -621,6 +550,22 @@ class CameraView @JvmOverloads constructor(
             captureCallback,
             backgroundHandler
         )
+    }
+
+    private fun updatePreview() {
+        try {
+            previewRequestBuilder.set(
+                CaptureRequest.CONTROL_MODE,
+                CameraMetadata.CONTROL_MODE_AUTO
+            )
+            captureSession?.setRepeatingRequest(
+                previewRequestBuilder.build(),
+                null,
+                backgroundHandler
+            )
+        } catch (e: CameraAccessException) {
+            errorLog("updatePreview", e)
+        }
     }
 
     private fun requestCapture() {
