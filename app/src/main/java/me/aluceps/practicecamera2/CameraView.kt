@@ -149,10 +149,10 @@ class CameraView @JvmOverloads constructor(
     private var backgroundHandler: Handler? = null
 
     private var imageReader: ImageReader? = null
-    private val onImageAvailableListener = ImageReader.OnImageAvailableListener { image ->
+    private val onImageAvailableListener = ImageReader.OnImageAvailableListener {
         backgroundHandler?.post {
-            image.use {
-                val buffer = it.acquireNextImage().planes.first().buffer
+            it.acquireNextImage().use { image ->
+                val buffer = image.planes.first().buffer
                 val bytes = ByteArray(buffer.remaining())
                 buffer.get(bytes)
                 FileOutputStream("$tempPath/temp_image.jpg").use { stream ->
@@ -262,6 +262,11 @@ class CameraView @JvmOverloads constructor(
                         override fun onConfigured(session: CameraCaptureSession) {
                             captureSession = session
                             try {
+                                previewRequestBuilder.set(
+                                    CaptureRequest.CONTROL_AF_MODE,
+                                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
+                                )
+                                previewRequest = previewRequestBuilder.build()
                                 preview()
                             } catch (e: CameraAccessException) {
                                 errorLog("onConfigured", e)
@@ -414,7 +419,6 @@ class CameraView @JvmOverloads constructor(
 
     private fun captureStillPicture() {
         try {
-            cameraDevice ?: return
             if (cameraDevice == null) return
             val captureBuilder = cameraDevice?.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)?.apply {
                 addTarget(imageReader!!.surface)
@@ -534,11 +538,6 @@ class CameraView @JvmOverloads constructor(
     }
 
     private fun preview() {
-        previewRequestBuilder.set(
-            CaptureRequest.CONTROL_AF_MODE,
-            CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
-        )
-        previewRequest = previewRequestBuilder.build()
         captureSession?.setRepeatingRequest(
             previewRequest,
             captureCallback,
