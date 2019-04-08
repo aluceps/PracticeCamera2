@@ -23,6 +23,7 @@ import android.view.View
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -65,12 +66,6 @@ class CameraView @JvmOverloads constructor(
 
     override var state: State.Camera = State.Camera.Preview
 
-    override val tempPath by lazy {
-        File("${Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)}/PracticeCamera2/").also { dir ->
-            if (!dir.exists()) dir.mkdir()
-        }.absolutePath
-    }
-
     override fun resume(activity: AppCompatActivity?) {
         if (activity != null) {
             this.activity = activity
@@ -106,7 +101,8 @@ class CameraView @JvmOverloads constructor(
         }
     }
 
-    override fun capture() {
+    override fun captureImage(file: File) {
+        currentFile = file
         lockFocus()
     }
 
@@ -118,8 +114,9 @@ class CameraView @JvmOverloads constructor(
         }
     }
 
-    override fun captureVideo() {
-        recordingVideo()
+    override fun captureVideo(file: File) {
+        currentFile = null
+        recordingVideo(file)
     }
 
     override fun stopCaptureVideo() {
@@ -155,7 +152,7 @@ class CameraView @JvmOverloads constructor(
                 val buffer = image.planes.first().buffer
                 val bytes = ByteArray(buffer.remaining())
                 buffer.get(bytes)
-                FileOutputStream("$tempPath/temp_image.jpg").use { stream ->
+                FileOutputStream(currentFile).use { stream ->
                     stream.write(bytes)
                 }
             }
@@ -179,6 +176,7 @@ class CameraView @JvmOverloads constructor(
     }
 
     private var isRecordingVideo = false
+    private var currentFile: File? = null
 
     private fun setupCamera() {
         manager.cameraIdList.forEach { cameraId ->
@@ -473,11 +471,11 @@ class CameraView @JvmOverloads constructor(
         }
     }
 
-    private fun recordingVideo() {
+    private fun recordingVideo(file: File) {
         cameraDevice?.let { device ->
             try {
                 closePreviewSession()
-                setupMediaRecorder()
+                setupMediaRecorder(file)
 
                 val texture = surfaceTexture.apply { setDefaultBufferSize(previewSize.width, previewSize.height) }
                 val previewSurface = Surface(texture)
@@ -512,7 +510,8 @@ class CameraView @JvmOverloads constructor(
         }
     }
 
-    private fun setupMediaRecorder() {
+    private fun setupMediaRecorder(file: File) {
+        currentFile = file
         mediaRecorder = MediaRecorder()
 
         val rotation = activity.windowManager.defaultDisplay.rotation
@@ -527,7 +526,7 @@ class CameraView @JvmOverloads constructor(
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            setOutputFile("$tempPath/temp_video.mp4")
+            setOutputFile(currentFile!!.absolutePath)
             setVideoEncodingBitRate(RECORD_ENCODING_BIT_RATE)
             setVideoFrameRate(RECORD_FRAME_RATE)
             setVideoSize(previewSize.width, previewSize.height)
@@ -596,4 +595,11 @@ class CameraView @JvmOverloads constructor(
         private const val RECORD_ENCODING_BIT_RATE = 12000000
         private const val RECORD_FRAME_RATE = 30
     }
+}
+
+@SuppressLint("SimpleDateFormat")
+fun createTempFile(prefix: String, suffix: String): File {
+    val root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+    val directory = File("$root/PracticeCamera2").apply { mkdir() }
+    return File(directory, "${prefix}_%s$suffix".format(SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())))
 }

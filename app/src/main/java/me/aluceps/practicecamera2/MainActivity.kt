@@ -17,11 +17,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding.action.setOnClickListener {
             Toast.makeText(it.context, "写真", Toast.LENGTH_SHORT).show()
-            binding.cameraView.capture()
+            binding.cameraView.captureImage(createTempFile("temp_image", ".jpg"))
         }
         binding.action.setOnLongClickListener {
             Toast.makeText(it.context, "動画", Toast.LENGTH_SHORT).show()
-            binding.cameraView.captureVideo()
+            binding.cameraView.captureVideo(createTempFile("temp_video", ".mp4"))
             true
         }
         binding.close.setOnClickListener {

@@ -7,6 +7,7 @@ import android.support.v4.content.PermissionChecker
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.util.Size
+import java.io.File
 import java.lang.Long.signum
 import java.util.*
 
@@ -19,12 +20,11 @@ interface CameraViewInterface {
     fun resume(activity: AppCompatActivity? = null)
     fun pause()
     fun requestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray)
-    fun capture()
+    fun captureImage(file: File)
     fun unlock()
-    fun captureVideo()
+    fun captureVideo(file: File)
     fun stopCaptureVideo()
     var state: State.Camera
-    val tempPath: String
 }
 
 sealed class State {
