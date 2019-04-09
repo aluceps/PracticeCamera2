@@ -7,6 +7,7 @@ import android.support.v4.content.PermissionChecker
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.util.Size
+import android.widget.Toast
 import java.io.File
 import java.lang.Long.signum
 import java.util.*
@@ -41,31 +42,63 @@ sealed class Permission {
     object Camera : Permission() {
         override val manifest: String = Manifest.permission.CAMERA
         override val code: Int = 0x001
+        override var message: String = "You have to accept to permission request if you want to use camera."
     }
 
     object Audio : Permission() {
         override val manifest: String = Manifest.permission.RECORD_AUDIO
         override val code: Int = 0x002
+        override var message: String = "You have to accept to permission request if you want to record video."
     }
 
     object WriteExternalStorage : Permission() {
         override val manifest: String = Manifest.permission.WRITE_EXTERNAL_STORAGE
         override val code: Int = 0x003
+        override var message: String = "You have to accept to permission request if you want to save picture."
+    }
+
+    object All : Permission() {
+        override val manifest: String = ""
+        override val code: Int = 0x004
+        override var message: String = ""
+        val manifests: List<String> = listOf(
+            Camera.manifest,
+            Audio.manifest,
+            WriteExternalStorage.manifest
+        )
     }
 
     abstract val manifest: String
     abstract val code: Int
+    abstract var message: String
 }
 
-fun AppCompatActivity.requestPermission(permission: Permission, granted: (() -> Unit)? = null) {
-    if (PermissionChecker.checkSelfPermission(this, permission.manifest) != PackageManager.PERMISSION_GRANTED) {
+fun AppCompatActivity.requestPermission(permission: Permission, request: (() -> Unit)?): Boolean {
+    val checkPermissionResult =
+        PermissionChecker.checkSelfPermission(this, permission.manifest) != PackageManager.PERMISSION_GRANTED
+    if (checkPermissionResult) {
         if (ActivityCompat.shouldShowRequestPermissionRationale(this, permission.manifest)) {
             debugLog("requestPermission: ${permission.manifest}")
+            Toast.makeText(this, permission.message, Toast.LENGTH_SHORT).show()
         } else {
-            ActivityCompat.requestPermissions(this, listOf(permission.manifest).toTypedArray(), permission.code)
+            request?.invoke()
         }
-    } else {
-        granted?.invoke()
+    }
+    return checkPermissionResult
+}
+
+fun AppCompatActivity.requestAllPermission(granted: (() -> Unit)? = null) {
+    when {
+        requestPermission(Permission.Camera) {
+            ActivityCompat.requestPermissions(this, Permission.All.manifests.toTypedArray(), Permission.All.code)
+        } -> Unit
+        requestPermission(Permission.Audio) {
+            ActivityCompat.requestPermissions(this, Permission.All.manifests.toTypedArray(), Permission.All.code)
+        } -> Unit
+        requestPermission(Permission.WriteExternalStorage) {
+            ActivityCompat.requestPermissions(this, Permission.All.manifests.toTypedArray(), Permission.All.code)
+        } -> Unit
+        else -> granted?.invoke()
     }
 }
 
