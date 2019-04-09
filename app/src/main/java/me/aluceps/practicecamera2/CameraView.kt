@@ -234,7 +234,8 @@ class CameraView @JvmOverloads constructor(
                         }
 
                         override fun onDisconnected(camera: CameraDevice) {
-                            closeCameraDevice()
+                            camera.close()
+                            cameraDevice = null
                         }
 
                         override fun onError(camera: CameraDevice, error: Int) {
