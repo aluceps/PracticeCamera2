@@ -515,7 +515,10 @@ class CameraView @JvmOverloads constructor(
 
     private fun setupMediaRecorder(file: File) {
         currentFile = file
-        mediaRecorder = MediaRecorder()
+
+        if (mediaRecorder == null) {
+            mediaRecorder = MediaRecorder()
+        }
 
         val rotation = activity.windowManager.defaultDisplay.rotation
         when (orientation) {
