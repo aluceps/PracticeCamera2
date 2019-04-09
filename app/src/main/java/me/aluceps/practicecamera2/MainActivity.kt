@@ -1,8 +1,10 @@
 package me.aluceps.practicecamera2
 
+import android.annotation.SuppressLint
 import android.databinding.DataBindingUtil
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
+import android.view.MotionEvent
 import android.view.View
 import android.widget.Toast
 import me.aluceps.practicecamera2.databinding.ActivityMainBinding
@@ -13,6 +15,7 @@ class MainActivity : AppCompatActivity() {
         DataBindingUtil.setContentView<ActivityMainBinding>(this, R.layout.activity_main)
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding.action.setOnClickListener {
@@ -23,6 +26,13 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(it.context, "動画", Toast.LENGTH_SHORT).show()
             binding.cameraView.captureVideo(createTempFile("temp_video", ".mp4"))
             true
+        }
+        binding.action.setOnTouchListener { _, e ->
+            if (e.action == MotionEvent.ACTION_UP) {
+                binding.cameraView.unlock()
+            } else {
+                false
+            }
         }
         binding.close.setOnClickListener {
             binding.cameraView.unlock()

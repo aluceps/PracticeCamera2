@@ -21,7 +21,7 @@ interface CameraViewInterface {
     fun pause()
     fun requestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray)
     fun captureImage(file: File)
-    fun unlock()
+    fun unlock(): Boolean
     fun captureVideo(file: File)
     fun stopCaptureVideo()
     var state: State.Camera
