@@ -223,25 +223,27 @@ class CameraView @JvmOverloads constructor(
     @SuppressLint("MissingPermission")
     private fun openCamera() {
         activity.requestPermission(Permission.Camera) {
-            setupCamera()
-            manager.openCamera(cameraId, object : CameraDevice.StateCallback() {
-                override fun onOpened(camera: CameraDevice) {
-                    cameraDevice = camera
-                    createCameraPreviewSession()
-                }
+            activity.requestPermission(Permission.Audio) {
+                activity.requestPermission(Permission.WriteExternalStorage) {
+                    setupCamera()
+                    manager.openCamera(cameraId, object : CameraDevice.StateCallback() {
+                        override fun onOpened(camera: CameraDevice) {
+                            cameraDevice = camera
+                            createCameraPreviewSession()
+                        }
 
-                override fun onDisconnected(camera: CameraDevice) {
-                    closeCameraDevice()
-                }
+                        override fun onDisconnected(camera: CameraDevice) {
+                            closeCameraDevice()
+                        }
 
-                override fun onError(camera: CameraDevice, error: Int) {
-                    onDisconnected(camera)
-                    activity.finish()
+                        override fun onError(camera: CameraDevice, error: Int) {
+                            onDisconnected(camera)
+                            activity.finish()
+                        }
+                    }, backgroundHandler)
                 }
-            }, backgroundHandler)
+            }
         }
-        activity.requestPermission(Permission.Audio)
-        activity.requestPermission(Permission.WriteExternalStorage)
     }
 
     private fun createCameraPreviewSession() {
