@@ -96,8 +96,10 @@ class CameraView @JvmOverloads constructor(
                 debugLog("requestPermissionsResult: grantResults is empty")
             grantResults.any { it != PackageManager.PERMISSION_GRANTED } ->
                 debugLog("requestPermissionsResult: ${grantResults.first()}")
-            else ->
-                if (requestCode == Permission.Camera.code) openCamera() else Unit
+            else -> {
+                debugLog("requestPermissionsResult: requestCode=$requestCode permissions=${permissions.contentToString()}")
+                if (requestCode == Permission.All.code) openCamera() else Unit
+            }
         }
     }
 
