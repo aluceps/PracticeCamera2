@@ -19,7 +19,6 @@ import android.util.Size
 import android.util.SparseIntArray
 import android.view.Surface
 import android.view.TextureView
-import android.view.View
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -45,8 +44,8 @@ class CameraView @JvmOverloads constructor(
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-        val w = View.MeasureSpec.getSize(widthMeasureSpec)
-        val h = View.MeasureSpec.getSize(heightMeasureSpec)
+        val w = MeasureSpec.getSize(widthMeasureSpec)
+        val h = MeasureSpec.getSize(heightMeasureSpec)
         if (ratioWidth == 0 || ratioHeight == 0) {
             setMeasuredDimension(w, h)
         } else {
@@ -74,7 +73,7 @@ class CameraView @JvmOverloads constructor(
         if (isAvailable) {
             openCamera()
         } else {
-            surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+            surfaceTextureListener = object : SurfaceTextureListener {
                 override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture?, width: Int, height: Int) = Unit
                 override fun onSurfaceTextureUpdated(surface: SurfaceTexture?) = Unit
                 override fun onSurfaceTextureDestroyed(surface: SurfaceTexture?): Boolean = true
@@ -133,6 +132,16 @@ class CameraView @JvmOverloads constructor(
         createCameraPreviewSession()
     }
 
+    override fun facing() {
+        cameraIndex = when {
+            cameraIndex == 0 && cameraIdList.isNotEmpty() && cameraIdList.size < 3 -> cameraIdList.size - 1
+            cameraIndex == 0 && cameraIdList.isNotEmpty() && cameraIdList.size > 2 -> cameraIdList.size - 2
+            else -> 0
+        }
+        closeCamera()
+        resume(activity)
+    }
+
     private var cameraId: String = ""
     private var orientation: Int = 0
     private var flashSupport: Boolean = false
@@ -181,14 +190,15 @@ class CameraView @JvmOverloads constructor(
     private var isRecordingVideo = false
     private var currentFile: File? = null
 
-    private fun setupCamera() {
-        manager.cameraIdList.forEach { cameraId ->
-            val characteristics = manager.getCameraCharacteristics(cameraId)
-            characteristics.get(CameraCharacteristics.LENS_FACING)?.let {
-                if (it == CameraCharacteristics.LENS_FACING_FRONT) return@forEach
-            }
-            val map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP) ?: return@forEach
+    private var cameraIndex = 0
+    private val cameraIdList by lazy {
+        manager.cameraIdList
+    }
 
+    private fun setupCamera() {
+        val cameraId = cameraIdList[cameraIndex]
+        val characteristics = manager.getCameraCharacteristics(cameraId)
+        characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)?.let { map ->
             this.cameraId = cameraId
             this.orientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
             this.flashSupport = characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
@@ -218,8 +228,6 @@ class CameraView @JvmOverloads constructor(
             } else {
                 setAspectRatio(previewSize.height, previewSize.width)
             }
-
-            return
         }
     }
 

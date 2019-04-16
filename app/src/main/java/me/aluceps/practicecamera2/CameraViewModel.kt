@@ -25,6 +25,7 @@ interface CameraViewInterface {
     fun unlock(): Boolean
     fun captureVideo(file: File)
     fun stopCaptureVideo()
+    fun facing()
     var state: State.Camera
 }
 

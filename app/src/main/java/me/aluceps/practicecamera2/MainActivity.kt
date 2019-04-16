@@ -34,6 +34,9 @@ class MainActivity : AppCompatActivity() {
                 false
             }
         }
+        binding.facing.setOnClickListener {
+            binding.cameraView.facing()
+        }
         binding.close.setOnClickListener {
             binding.cameraView.unlock()
         }

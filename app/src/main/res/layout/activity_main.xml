@@ -41,5 +41,16 @@
             app:layout_constraintEnd_toEndOf="@id/camera_view"
             app:layout_constraintStart_toStartOf="@id/camera_view"
             />
+
+        <Button
+            android:id="@+id/facing"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            android:text="facing"
+            app:layout_constraintBottom_toBottomOf="@id/camera_view"
+            app:layout_constraintEnd_toEndOf="@id/camera_view"
+            app:layout_constraintStart_toEndOf="@id/action"
+            />
     </android.support.constraint.ConstraintLayout>
 </layout>
