@@ -37,8 +37,11 @@ class MainActivity : AppCompatActivity() {
         binding.facing.setOnClickListener {
             binding.cameraView.facing()
         }
+        binding.flash.setOnClickListener {
+            binding.cameraView.toggleFlash()
+        }
         binding.close.setOnClickListener {
-            binding.cameraView.unlock()
+//            binding.cameraView.unlock()
         }
     }
 

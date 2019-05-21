@@ -65,6 +65,8 @@ class CameraView @JvmOverloads constructor(
 
     override var state: State.Camera = State.Camera.Preview
 
+    override var flashState: State.Flash = State.Flash.Off
+
     override fun resume(activity: AppCompatActivity?) {
         if (activity != null) {
             this.activity = activity
@@ -140,6 +142,17 @@ class CameraView @JvmOverloads constructor(
         }
         closeCamera()
         resume(activity)
+    }
+
+    override fun toggleFlash() {
+        val state = flashState
+        when (state) {
+            State.Flash.On -> State.Flash.Off
+            State.Flash.Off -> State.Flash.On
+        }.let {
+            flashState = it
+            debugLog("flashState: $it")
+        }
     }
 
     private var cameraId: String = ""
@@ -438,13 +451,16 @@ class CameraView @JvmOverloads constructor(
                     CaptureRequest.CONTROL_AF_MODE,
                     CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
                 )
+                setFlash(this)
             }
             val captureCallback = object : CameraCaptureSession.CaptureCallback() {
                 override fun onCaptureCompleted(
                     session: CameraCaptureSession,
                     request: CaptureRequest,
                     result: TotalCaptureResult
-                ) = Unit
+                ) {
+                    unLockFocus()
+                }
             }
             captureBuilder?.build()?.let { request ->
                 captureSession?.apply {
@@ -472,6 +488,7 @@ class CameraView @JvmOverloads constructor(
     private fun unLockFocus() {
         try {
             cancelAutoFocus()
+            setFlash(previewRequestBuilder)
             requestCapture()
             state = State.Camera.Preview
             debugLog("unLockFocus: state=$state")
@@ -600,6 +617,19 @@ class CameraView @JvmOverloads constructor(
             CaptureRequest.CONTROL_AF_TRIGGER,
             CameraMetadata.CONTROL_AF_TRIGGER_CANCEL
         )
+    }
+
+    private fun setFlash(requestBuilder: CaptureRequest.Builder) {
+        when (flashState) {
+            State.Flash.On -> {
+                requestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                requestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
+            }
+            State.Flash.Off -> {
+                requestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                requestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF)
+            }
+        }
     }
 
     companion object {

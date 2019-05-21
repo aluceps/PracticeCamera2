@@ -26,7 +26,9 @@ interface CameraViewInterface {
     fun captureVideo(file: File)
     fun stopCaptureVideo()
     fun facing()
+    fun toggleFlash()
     var state: State.Camera
+    var flashState: State.Flash
 }
 
 sealed class State {
@@ -36,6 +38,11 @@ sealed class State {
         object WaitingPrecapture : Camera()
         object WaitingNonPrecapture : Camera()
         object PictureTaken : Camera()
+    }
+
+    sealed class Flash {
+        object On : Flash()
+        object Off : Flash()
     }
 }
 
